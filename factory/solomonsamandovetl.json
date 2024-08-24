@@ -1,0 +1,9 @@
+{
+	"name": "solomonsamandovetl",
+	"location": "westeurope",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "ebd31cb1-93af-4f68-8101-96941c0dd155",
+		"tenantId": "cbb29566-5bab-4c01-ab3e-3a7838a2c009"
+	}
+}

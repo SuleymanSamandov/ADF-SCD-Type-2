@@ -1,0 +1,17 @@
+{
+	"name": "SqlServer2",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "SqlServer",
+		"typeProperties": {
+			"server": "solomonsamandov.database.windows.net",
+			"database": "Data",
+			"encrypt": "mandatory",
+			"trustServerCertificate": false,
+			"authenticationType": "SQL",
+			"userName": "solomonsamandov",
+			"encryptedCredential": "ew0KICAiVmVyc2lvbiI6ICIyMDE3LTExLTMwIiwNCiAgIlByb3RlY3Rpb25Nb2RlIjogIktleSIsDQogICJTZWNyZXRDb250ZW50VHlwZSI6ICJQbGFpbnRleHQiLA0KICAiQ3JlZGVudGlhbElkIjogIkRBVEFGQUNUT1JZQDAyMjcwNDcwLTc2NDctNEUwRC04RkU5LTg3NjQzRDI1REI0MF8zZGZlZjBlZC04ZjM4LTQ1MjYtOTBjYi1jZThlZjBlZmIyMGUiDQp9"
+		}
+	}
+}

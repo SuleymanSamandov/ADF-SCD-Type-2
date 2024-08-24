@@ -1,0 +1,276 @@
+{
+	"name": "dataflow1",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "SqlServerTable1",
+						"type": "DatasetReference"
+					},
+					"name": "SOURCE"
+				},
+				{
+					"dataset": {
+						"referenceName": "SqlServerTable2",
+						"type": "DatasetReference"
+					},
+					"name": "TARGET"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "InsertNewData",
+						"type": "DatasetReference"
+					},
+					"name": "TargetDest"
+				},
+				{
+					"dataset": {
+						"referenceName": "InsertNewData",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				},
+				{
+					"dataset": {
+						"referenceName": "InsertNewData",
+						"type": "DatasetReference"
+					},
+					"name": "sink2"
+				}
+			],
+			"transformations": [
+				{
+					"name": "TypeConversionID",
+					"description": "Creating/updating the columns 'ID'"
+				},
+				{
+					"name": "FilterOutNull"
+				},
+				{
+					"name": "TypeConversionAll"
+				},
+				{
+					"name": "lookup1"
+				},
+				{
+					"name": "select1"
+				},
+				{
+					"name": "split1"
+				},
+				{
+					"name": "AddNewAtr"
+				},
+				{
+					"name": "NormName"
+				},
+				{
+					"name": "RenamingName"
+				},
+				{
+					"name": "Look"
+				},
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "select2"
+				},
+				{
+					"name": "alterRow1"
+				},
+				{
+					"name": "derivedColumn2"
+				},
+				{
+					"name": "select3"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          ID as integer,",
+				"          NAME as string,",
+				"          PRODUCT_CATEGORY as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> SOURCE",
+				"source(output(",
+				"          SID as integer,",
+				"          ID as integer,",
+				"          NAME as string,",
+				"          PRODUCT_CATEGORY as string,",
+				"          START_DATE as timestamp,",
+				"          END_DATE as timestamp,",
+				"          FLAG as integer",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> TARGET",
+				"TARGET derive(SID = SID,",
+				"          ID = ID,",
+				"          NAME = NAME,",
+				"          PRODUCT_CATEGORY = PRODUCT_CATEGORY,",
+				"          START_DATE = START_DATE,",
+				"          END_DATE = END_DATE,",
+				"          FLAG = FLAG) ~> TypeConversionID",
+				"SOURCE filter(!isNull(NAME) || !isNull(PRODUCT_CATEGORY)) ~> FilterOutNull",
+				"FilterOutNull derive(ID = ID,",
+				"          NAME = NAME,",
+				"          PRODUCT_CATEGORY = PRODUCT_CATEGORY) ~> TypeConversionAll",
+				"TypeConversionAll, TypeConversionID lookup(TypeConversionAll@ID == TypeConversionID@ID,",
+				"     multiple: true,",
+				"     broadcast: 'both',",
+				"     pickup: 'any')~> lookup1",
+				"lookup1 select(mapColumn(",
+				"          SOURCE_ID = TypeConversionAll@ID,",
+				"          SOURCE_NAME = TypeConversionAll@NAME,",
+				"          SOURCE_PRODUCT_CATEGORY = TypeConversionAll@PRODUCT_CATEGORY,",
+				"          TARGET_ID = TypeConversionID@ID,",
+				"          TARGET_NAME = TypeConversionID@NAME,",
+				"          TARGET_PRODUCT_CATEGORY = TypeConversionID@PRODUCT_CATEGORY,",
+				"          TARGET_START_DATE = START_DATE,",
+				"          TARGET_END_DATE = END_DATE,",
+				"          TARGET_FLAG = FLAG",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: false) ~> select1",
+				"select1 split(!isNull(SOURCE_ID) && isNull(TARGET_ID),",
+				"     disjoint: false) ~> split1@(NewRow, CheckForUpdate)",
+				"split1@NewRow derive(SOURCE_FLAG = 1,",
+				"          SOURCE_STAR_DATE = currentDate(),",
+				"          SOURCE_END_DATE = toDate(toString('1900-01-01'))) ~> AddNewAtr",
+				"AddNewAtr select(mapColumn(",
+				"          ID = SOURCE_ID,",
+				"          NAME = SOURCE_NAME,",
+				"          PRODUCT_CATEGORY = SOURCE_PRODUCT_CATEGORY,",
+				"          STAR_DATE = SOURCE_STAR_DATE,",
+				"          END_DATE = SOURCE_END_DATE,",
+				"          FLAG = SOURCE_FLAG",
+				"     ),",
+				"     skipDuplicateMapInputs: false,",
+				"     skipDuplicateMapOutputs: false) ~> NormName",
+				"split1@CheckForUpdate select(mapColumn(",
+				"          SOURCE_ID,",
+				"          SOURCE_NAME,",
+				"          SOURCE_PRODUCT_CATEGORY",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: false) ~> RenamingName",
+				"RenamingName, TypeConversionID exists(SOURCE_ID==ID &&\r",
+				"(\r",
+				"    SOURCE_NAME!=NAME ||\r",
+				"    SOURCE_PRODUCT_CATEGORY!=PRODUCT_CATEGORY\r",
+				")\r",
+				"&& FLAG==1,",
+				"     negate:false,",
+				"     broadcast: 'both')~> Look",
+				"Look derive(END_DATE = currentDate(),",
+				"          FLAG = 0) ~> derivedColumn1",
+				"derivedColumn1 select(mapColumn(",
+				"          ID = SOURCE_ID,",
+				"          NAME = SOURCE_NAME,",
+				"          PRODUCT_CATEGORY = SOURCE_PRODUCT_CATEGORY,",
+				"          END_DATE,",
+				"          FLAG",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: false) ~> select2",
+				"select2 alterRow(updateIf(true())) ~> alterRow1",
+				"Look derive(START_DATE = currentDate(),",
+				"          END_DATE = toDate(toString('1900-01-01')),",
+				"          FLAG = 1) ~> derivedColumn2",
+				"derivedColumn2 select(mapColumn(",
+				"          ID = SOURCE_ID,",
+				"          NAME = SOURCE_NAME,",
+				"          PRODUCT_CATEGORY = SOURCE_PRODUCT_CATEGORY,",
+				"          START_DATE,",
+				"          END_DATE,",
+				"          FLAG",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: false) ~> select3",
+				"NormName sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          SID as integer,",
+				"          ID as integer,",
+				"          NAME as string,",
+				"          PRODUCT_CATEGORY as string,",
+				"          START_DATE as timestamp,",
+				"          END_DATE as timestamp,",
+				"          FLAG as integer",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     saveOrder: 0,",
+				"     mapColumn(",
+				"          ID,",
+				"          NAME,",
+				"          PRODUCT_CATEGORY,",
+				"          START_DATE = STAR_DATE,",
+				"          END_DATE,",
+				"          FLAG",
+				"     )) ~> TargetDest",
+				"alterRow1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          SID as integer,",
+				"          ID as integer,",
+				"          NAME as string,",
+				"          PRODUCT_CATEGORY as string,",
+				"          START_DATE as timestamp,",
+				"          END_DATE as timestamp,",
+				"          FLAG as integer",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:false,",
+				"     updateable:true,",
+				"     upsertable:false,",
+				"     keys:['ID'],",
+				"     format: 'table',",
+				"     mapColumn(",
+				"          ID,",
+				"          END_DATE,",
+				"          FLAG",
+				"     )) ~> sink1",
+				"select3 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          SID as integer,",
+				"          ID as integer,",
+				"          NAME as string,",
+				"          PRODUCT_CATEGORY as string,",
+				"          START_DATE as timestamp,",
+				"          END_DATE as timestamp,",
+				"          FLAG as integer",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     mapColumn(",
+				"          ID,",
+				"          NAME,",
+				"          PRODUCT_CATEGORY,",
+				"          START_DATE,",
+				"          END_DATE,",
+				"          FLAG",
+				"     )) ~> sink2"
+			]
+		}
+	}
+}
