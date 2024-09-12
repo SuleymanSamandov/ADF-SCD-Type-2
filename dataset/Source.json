@@ -1,18 +1,13 @@
 {
-	"name": "SqlServerTable2",
+	"name": "Source",
 	"properties": {
 		"linkedServiceName": {
-			"referenceName": "Upsert",
+			"referenceName": "SqlServer1",
 			"type": "LinkedServiceReference"
 		},
 		"annotations": [],
 		"type": "SqlServerTable",
 		"schema": [
-			{
-				"name": "SID",
-				"type": "int",
-				"precision": 10
-			},
 			{
 				"name": "ID",
 				"type": "int",
@@ -25,28 +20,11 @@
 			{
 				"name": "PRODUCT",
 				"type": "nvarchar"
-			},
-			{
-				"name": "START_DATE",
-				"type": "datetime",
-				"precision": 23,
-				"scale": 3
-			},
-			{
-				"name": "END_DATE",
-				"type": "datetime",
-				"precision": 23,
-				"scale": 3
-			},
-			{
-				"name": "FLAG",
-				"type": "int",
-				"precision": 10
 			}
 		],
 		"typeProperties": {
 			"schema": "dbo",
-			"table": "TARGET"
+			"table": "SOURCE"
 		}
 	},
 	"type": "Microsoft.DataFactory/factories/datasets"

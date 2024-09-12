@@ -1,8 +1,8 @@
 {
-	"name": "SqlServerTable2",
+	"name": "Target",
 	"properties": {
 		"linkedServiceName": {
-			"referenceName": "Upsert",
+			"referenceName": "Target",
 			"type": "LinkedServiceReference"
 		},
 		"annotations": [],

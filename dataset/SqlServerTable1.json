@@ -2,29 +2,51 @@
 	"name": "SqlServerTable1",
 	"properties": {
 		"linkedServiceName": {
-			"referenceName": "SqlServer1",
+			"referenceName": "InsertNewRows",
 			"type": "LinkedServiceReference"
 		},
 		"annotations": [],
 		"type": "SqlServerTable",
 		"schema": [
 			{
+				"name": "SID",
+				"type": "int",
+				"precision": 10
+			},
+			{
 				"name": "ID",
 				"type": "int",
 				"precision": 10
 			},
 			{
-				"name": "NAME",
-				"type": "varchar"
+				"name": "CATEGORY",
+				"type": "nvarchar"
 			},
 			{
-				"name": "PRODUCT_CATEGORY",
-				"type": "varchar"
+				"name": "PRODUCT",
+				"type": "nvarchar"
+			},
+			{
+				"name": "START_DATE",
+				"type": "datetime",
+				"precision": 23,
+				"scale": 3
+			},
+			{
+				"name": "END_DATE",
+				"type": "datetime",
+				"precision": 23,
+				"scale": 3
+			},
+			{
+				"name": "FLAG",
+				"type": "int",
+				"precision": 10
 			}
 		],
 		"typeProperties": {
 			"schema": "dbo",
-			"table": "SOURCE"
+			"table": "TARGET"
 		}
 	},
 	"type": "Microsoft.DataFactory/factories/datasets"
