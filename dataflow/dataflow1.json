@@ -29,17 +29,17 @@
 				},
 				{
 					"dataset": {
-						"referenceName": "SqlServerTable2",
-						"type": "DatasetReference"
-					},
-					"name": "UpdateTarget"
-				},
-				{
-					"dataset": {
-						"referenceName": "SqlServerTable2",
+						"referenceName": "Target",
 						"type": "DatasetReference"
 					},
 					"name": "sink1"
+				},
+				{
+					"dataset": {
+						"referenceName": "Target",
+						"type": "DatasetReference"
+					},
+					"name": "sink2"
 				}
 			],
 			"transformations": [
@@ -77,16 +77,13 @@
 					"name": "derivedColumn1"
 				},
 				{
-					"name": "alterRow1"
-				},
-				{
-					"name": "InsertUpdatedRows"
+					"name": "derivedColumn2"
 				},
 				{
 					"name": "select1"
 				},
 				{
-					"name": "select2"
+					"name": "alterRow1"
 				}
 			],
 			"scriptLines": [
@@ -161,33 +158,23 @@
 				"NormNameChechkForUpdate, TypeConversionTargetID exists(NormNameChechkForUpdate@ID==TypeConversionTargetID@ID &&\r",
 				"(\r",
 				"    NormNameChechkForUpdate@CATEGORY != TypeConversionTargetID@CATEGORY ||\r",
-				"    NormNameChechkForUpdate@PRODUCT  != TypeConversionTargetID@PRODUCT\r",
-				") && FLAG==1,",
+				"    NormNameChechkForUpdate@PRODUCT  != TypeConversionTargetID@PRODUCT && FLAG==1\r",
+				"),",
 				"     negate:false,",
 				"     broadcast: 'auto')~> exists1",
-				"exists1 derive(END_DATE = currentTimestamp(),",
-				"          FLAG = 0) ~> derivedColumn1",
-				"select2 alterRow(updateIf(true())) ~> alterRow1",
-				"exists1 derive(START_DATE_UPDATED = currentTimestamp(),",
-				"          END_DATE_UPDATED = toDate(toString('1900-01-01')),",
-				"          FLAG_UPDATED = 1) ~> InsertUpdatedRows",
-				"InsertUpdatedRows select(mapColumn(",
+				"exists1 derive(START_DATE = currentTimestamp(),",
+				"          END_DATE = toDate(toString('1900-01-01')),",
+				"          FLAG = 1) ~> derivedColumn1",
+				"exists1 derive(END_DATE = toDate(toString('1900-01-01')),",
+				"          FLAG = 0) ~> derivedColumn2",
+				"derivedColumn2 select(mapColumn(",
 				"          ID,",
-				"          CATEGORY,",
-				"          PRODUCT,",
-				"          START_DATE = START_DATE_UPDATED,",
-				"          END_DATE = END_DATE_UPDATED,",
-				"          FLAG = FLAG_UPDATED",
+				"          END_DATE,",
+				"          FLAG",
 				"     ),",
 				"     skipDuplicateMapInputs: false,",
 				"     skipDuplicateMapOutputs: false) ~> select1",
-				"derivedColumn1 select(mapColumn(",
-				"          END_DATE,",
-				"          FLAG,",
-				"          ID",
-				"     ),",
-				"     skipDuplicateMapInputs: false,",
-				"     skipDuplicateMapOutputs: false) ~> select2",
+				"select1 alterRow(updateIf(true())) ~> alterRow1",
 				"NormSourceName sink(allowSchemaDrift: false,",
 				"     validateSchema: false,",
 				"     input(",
@@ -212,6 +199,24 @@
 				"          END_DATE,",
 				"          FLAG",
 				"     )) ~> InsertNewRows",
+				"derivedColumn1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          SID as integer,",
+				"          ID as integer,",
+				"          CATEGORY as string,",
+				"          PRODUCT as string,",
+				"          START_DATE as timestamp,",
+				"          END_DATE as timestamp,",
+				"          FLAG as integer",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> sink1",
 				"alterRow1 sink(allowSchemaDrift: false,",
 				"     validateSchema: false,",
 				"     input(",
@@ -230,34 +235,10 @@
 				"     keys:['ID'],",
 				"     format: 'table',",
 				"     mapColumn(",
-				"          END_DATE,",
-				"          FLAG,",
-				"          ID",
-				"     )) ~> UpdateTarget",
-				"select1 sink(allowSchemaDrift: false,",
-				"     validateSchema: false,",
-				"     input(",
-				"          SID as integer,",
-				"          ID as integer,",
-				"          CATEGORY as string,",
-				"          PRODUCT as string,",
-				"          START_DATE as timestamp,",
-				"          END_DATE as timestamp,",
-				"          FLAG as integer",
-				"     ),",
-				"     deletable:false,",
-				"     insertable:true,",
-				"     updateable:false,",
-				"     upsertable:false,",
-				"     format: 'table',",
-				"     mapColumn(",
 				"          ID,",
-				"          CATEGORY,",
-				"          PRODUCT,",
-				"          START_DATE,",
 				"          END_DATE,",
 				"          FLAG",
-				"     )) ~> sink1"
+				"     )) ~> sink2"
 			]
 		}
 	}
