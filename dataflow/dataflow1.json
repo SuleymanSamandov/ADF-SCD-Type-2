@@ -6,40 +6,40 @@
 			"sources": [
 				{
 					"dataset": {
-						"referenceName": "Source",
+						"referenceName": "SqlServerTable1",
 						"type": "DatasetReference"
 					},
 					"name": "Source"
 				},
 				{
 					"dataset": {
-						"referenceName": "Target",
+						"referenceName": "SqlServerTable2",
 						"type": "DatasetReference"
 					},
-					"name": "Target"
+					"name": "Dim"
 				}
 			],
 			"sinks": [
 				{
 					"dataset": {
-						"referenceName": "SqlServerTable1",
+						"referenceName": "InsertTarget",
 						"type": "DatasetReference"
 					},
 					"name": "InsertNewRows"
 				},
 				{
 					"dataset": {
-						"referenceName": "Target",
+						"referenceName": "SqlServerTable4",
 						"type": "DatasetReference"
 					},
-					"name": "sink1"
+					"name": "InsertChangedUpdateRows"
 				},
 				{
 					"dataset": {
-						"referenceName": "Target",
+						"referenceName": "SqlServerTable4",
 						"type": "DatasetReference"
 					},
-					"name": "sink2"
+					"name": "InsertChangedRowsTarget"
 				}
 			],
 			"transformations": [
@@ -53,37 +53,40 @@
 					"name": "TypeConversionSourceID"
 				},
 				{
-					"name": "Lookup"
+					"name": "lookup1"
 				},
 				{
-					"name": "SelectSourceName"
+					"name": "split1"
 				},
 				{
-					"name": "NewRow"
+					"name": "AddSCDType2ColumnsForNewRows"
 				},
 				{
-					"name": "AddNewRow"
+					"name": "select2"
 				},
 				{
-					"name": "NormSourceName"
+					"name": "RenamingCondition"
 				},
 				{
-					"name": "NormNameChechkForUpdate"
+					"name": "Look"
 				},
 				{
-					"name": "exists1"
+					"name": "AddSCDType2ColumnsForUpdate"
 				},
 				{
-					"name": "derivedColumn1"
+					"name": "AddSCDType2ColumnsForChangedNewRows"
 				},
 				{
-					"name": "derivedColumn2"
+					"name": "RenamingChangedData"
 				},
 				{
-					"name": "select1"
+					"name": "RenamingUpdateData"
 				},
 				{
-					"name": "alterRow1"
+					"name": "Update"
+				},
+				{
+					"name": "RenamingNewRows"
 				}
 			],
 			"scriptLines": [
@@ -105,101 +108,86 @@
 				"          END_DATE as timestamp,",
 				"          FLAG as integer",
 				"     ),",
-				"     allowSchemaDrift: true,",
+				"     allowSchemaDrift: false,",
 				"     validateSchema: false,",
 				"     isolationLevel: 'READ_UNCOMMITTED',",
-				"     format: 'table') ~> Target",
-				"Target derive(ID = ID,",
-				"          CATEGORY = CATEGORY,",
-				"          PRODUCT = PRODUCT,",
-				"          START_DATE = START_DATE,",
-				"          END_DATE = END_DATE,",
-				"          FLAG = FLAG) ~> TypeConversionTargetID",
+				"     format: 'table') ~> Dim",
+				"Dim derive(ID = toInteger(ID)) ~> TypeConversionTargetID",
 				"Source filter(!isNull(CATEGORY) && !isNull(PRODUCT)) ~> FilterOutNull",
-				"FilterOutNull derive(ID = ID,",
+				"FilterOutNull derive(ID = toInteger(ID),",
 				"          CATEGORY = CATEGORY,",
 				"          PRODUCT = PRODUCT) ~> TypeConversionSourceID",
 				"TypeConversionSourceID, TypeConversionTargetID lookup(TypeConversionSourceID@ID == TypeConversionTargetID@ID,",
 				"     multiple: false,",
 				"     pickup: 'any',",
-				"     broadcast: 'auto')~> Lookup",
-				"Lookup select(mapColumn(",
-				"          ID_SOURCE = TypeConversionSourceID@ID,",
-				"          CATEGORY_SOURCE = TypeConversionSourceID@CATEGORY,",
-				"          PRODUCT_SOURCE = TypeConversionSourceID@PRODUCT,",
-				"          ID_TARGET = TypeConversionTargetID@ID,",
-				"          CATEGORY_TARGET = TypeConversionTargetID@CATEGORY,",
-				"          PRODUCT_TARGET = TypeConversionTargetID@PRODUCT",
+				"     broadcast: 'auto')~> lookup1",
+				"select2 split(isNull(TARGET_ID),",
+				"     disjoint: false) ~> split1@(NewRows, CheckForUpdate)",
+				"split1@NewRows derive(SOURCE_START_DATE = currentTimestamp(),",
+				"          SOURCE_END_DATE = toDate(toString('1900-01-01')),",
+				"          SOURCE_FLAG = 1) ~> AddSCDType2ColumnsForNewRows",
+				"lookup1 select(mapColumn(",
+				"          SOURCE_ID = TypeConversionSourceID@ID,",
+				"          SOURCE_CATEGORY = TypeConversionSourceID@CATEGORY,",
+				"          SOURCE_PRODUCT = TypeConversionSourceID@PRODUCT,",
+				"          TARGET_ID = TypeConversionTargetID@ID,",
+				"          TARGET_CATEGORY = Dim@CATEGORY,",
+				"          TARGET_PRODUCT = Dim@PRODUCT,",
+				"          TARGET_START_DATE = START_DATE,",
+				"          TARGET_END_DATE = END_DATE,",
+				"          TARGET_FLAG = FLAG",
 				"     ),",
-				"     skipDuplicateMapInputs: false,",
-				"     skipDuplicateMapOutputs: false) ~> SelectSourceName",
-				"SelectSourceName split(!isNull(ID_SOURCE) && isNull(ID_TARGET),",
-				"     disjoint: false) ~> NewRow@(NewData, CheckForUpdate)",
-				"NewRow@NewData derive(START_DATE_SOURCE = currentTimestamp(),",
-				"          END_DATE_SOURCE = toDate(toString('1900-01-01')),",
-				"          FLAG_SOURCE = 1) ~> AddNewRow",
-				"AddNewRow select(mapColumn(",
-				"          ID = ID_SOURCE,",
-				"          CATEGORY = CATEGORY_SOURCE,",
-				"          PRODUCT = PRODUCT_SOURCE,",
-				"          START_DATE = START_DATE_SOURCE,",
-				"          END_DATE = END_DATE_SOURCE,",
-				"          FLAG = FLAG_SOURCE",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select2",
+				"split1@CheckForUpdate select(mapColumn(",
+				"          SOURCE_ID,",
+				"          SOURCE_CATEGORY,",
+				"          SOURCE_PRODUCT",
 				"     ),",
-				"     skipDuplicateMapInputs: false,",
-				"     skipDuplicateMapOutputs: false) ~> NormSourceName",
-				"NewRow@CheckForUpdate select(mapColumn(",
-				"          ID = ID_SOURCE,",
-				"          CATEGORY = CATEGORY_SOURCE,",
-				"          PRODUCT = PRODUCT_SOURCE",
-				"     ),",
-				"     skipDuplicateMapInputs: false,",
-				"     skipDuplicateMapOutputs: false) ~> NormNameChechkForUpdate",
-				"NormNameChechkForUpdate, TypeConversionTargetID exists(NormNameChechkForUpdate@ID==TypeConversionTargetID@ID &&\r",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> RenamingCondition",
+				"RenamingCondition, TypeConversionTargetID exists(SOURCE_ID==ID &&\r",
 				"(\r",
-				"    NormNameChechkForUpdate@CATEGORY != TypeConversionTargetID@CATEGORY ||\r",
-				"    NormNameChechkForUpdate@PRODUCT  != TypeConversionTargetID@PRODUCT && FLAG==1\r",
-				"),",
+				"    SOURCE_PRODUCT!=PRODUCT\r",
+				") &&FLAG==1,",
 				"     negate:false,",
-				"     broadcast: 'auto')~> exists1",
-				"exists1 derive(START_DATE = currentTimestamp(),",
+				"     broadcast: 'auto')~> Look",
+				"Look derive(END_DATE = currentTimestamp(),",
+				"          FLAG = 0) ~> AddSCDType2ColumnsForUpdate",
+				"Look derive(START_DATE = currentTimestamp(),",
 				"          END_DATE = toDate(toString('1900-01-01')),",
-				"          FLAG = 1) ~> derivedColumn1",
-				"exists1 derive(END_DATE = toDate(toString('1900-01-01')),",
-				"          FLAG = 0) ~> derivedColumn2",
-				"derivedColumn2 select(mapColumn(",
-				"          ID,",
-				"          END_DATE,",
-				"          FLAG",
-				"     ),",
-				"     skipDuplicateMapInputs: false,",
-				"     skipDuplicateMapOutputs: false) ~> select1",
-				"select1 alterRow(updateIf(true())) ~> alterRow1",
-				"NormSourceName sink(allowSchemaDrift: false,",
-				"     validateSchema: false,",
-				"     input(",
-				"          SID as integer,",
-				"          ID as integer,",
-				"          CATEGORY as string,",
-				"          PRODUCT as string,",
-				"          START_DATE as timestamp,",
-				"          END_DATE as timestamp,",
-				"          FLAG as integer",
-				"     ),",
-				"     deletable:false,",
-				"     insertable:true,",
-				"     updateable:false,",
-				"     upsertable:false,",
-				"     format: 'table',",
-				"     mapColumn(",
-				"          ID,",
-				"          CATEGORY,",
-				"          PRODUCT,",
+				"          FLAG = 1) ~> AddSCDType2ColumnsForChangedNewRows",
+				"AddSCDType2ColumnsForChangedNewRows select(mapColumn(",
+				"          ID = SOURCE_ID,",
+				"          CATEGORY = SOURCE_CATEGORY,",
+				"          PRODUCT = SOURCE_PRODUCT,",
 				"          START_DATE,",
 				"          END_DATE,",
 				"          FLAG",
-				"     )) ~> InsertNewRows",
-				"derivedColumn1 sink(allowSchemaDrift: true,",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> RenamingChangedData",
+				"AddSCDType2ColumnsForUpdate select(mapColumn(",
+				"          ID = SOURCE_ID,",
+				"          CATEGORY = SOURCE_CATEGORY,",
+				"          PRODUCT = SOURCE_PRODUCT,",
+				"          END_DATE,",
+				"          FLAG",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> RenamingUpdateData",
+				"RenamingUpdateData alterRow(updateIf(true())) ~> Update",
+				"AddSCDType2ColumnsForNewRows select(mapColumn(",
+				"          ID = SOURCE_ID,",
+				"          CATEGORY = SOURCE_CATEGORY,",
+				"          PRODUCT = SOURCE_PRODUCT,",
+				"          START_DATE = SOURCE_START_DATE,",
+				"          END_DATE = SOURCE_END_DATE,",
+				"          FLAG = SOURCE_FLAG",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> RenamingNewRows",
+				"RenamingNewRows sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     input(",
 				"          SID as integer,",
@@ -216,8 +204,17 @@
 				"     upsertable:false,",
 				"     format: 'table',",
 				"     skipDuplicateMapInputs: true,",
-				"     skipDuplicateMapOutputs: true) ~> sink1",
-				"alterRow1 sink(allowSchemaDrift: false,",
+				"     skipDuplicateMapOutputs: true,",
+				"     saveOrder: 1,",
+				"     mapColumn(",
+				"          ID,",
+				"          CATEGORY,",
+				"          PRODUCT,",
+				"          START_DATE,",
+				"          END_DATE,",
+				"          FLAG",
+				"     )) ~> InsertNewRows",
+				"Update sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     input(",
 				"          SID as integer,",
@@ -234,11 +231,41 @@
 				"     upsertable:false,",
 				"     keys:['ID'],",
 				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     saveOrder: 2,",
 				"     mapColumn(",
 				"          ID,",
 				"          END_DATE,",
 				"          FLAG",
-				"     )) ~> sink2"
+				"     )) ~> InsertChangedUpdateRows",
+				"RenamingChangedData sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          SID as integer,",
+				"          ID as integer,",
+				"          CATEGORY as string,",
+				"          PRODUCT as string,",
+				"          START_DATE as timestamp,",
+				"          END_DATE as timestamp,",
+				"          FLAG as integer",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     saveOrder: 3,",
+				"     mapColumn(",
+				"          ID,",
+				"          CATEGORY,",
+				"          PRODUCT,",
+				"          START_DATE,",
+				"          END_DATE,",
+				"          FLAG",
+				"     )) ~> InsertChangedRowsTarget"
 			]
 		}
 	}

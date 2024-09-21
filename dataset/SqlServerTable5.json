@@ -1,8 +1,8 @@
 {
-	"name": "SqlServerTable1",
+	"name": "SqlServerTable5",
 	"properties": {
 		"linkedServiceName": {
-			"referenceName": "Source",
+			"referenceName": "SqlServer3",
 			"type": "LinkedServiceReference"
 		},
 		"annotations": [],
@@ -24,7 +24,7 @@
 		],
 		"typeProperties": {
 			"schema": "dbo",
-			"table": "SOURCE"
+			"table": "TEMP"
 		}
 	},
 	"type": "Microsoft.DataFactory/factories/datasets"

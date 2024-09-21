@@ -1,0 +1,9 @@
+{
+	"name": "solomonfactory",
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "5ac671fa-8f76-40c7-b037-52eb404545b4",
+		"tenantId": "2cf618f2-740c-49b6-9aa2-995176a1bb6d"
+	}
+}
